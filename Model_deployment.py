@@ -1,7 +1,7 @@
-import os
-print("Working directory:", os.getcwd())
+#import os
+#print("Working directory:", os.getcwd())
 
-os.chdir(r"C:\Users\ADMIN\Desktop\INX EMOLOYEE PERFORMANCE PREDICTION")
+#os.chdir(r"C:\Users\ADMIN\Desktop\INX EMOLOYEE PERFORMANCE PREDICTION")
 
 import streamlit as st
 import joblib
