@@ -80,7 +80,7 @@ performance_categories = {
 if st.button("Predict Performance Level"):
     if model is not None and scaler is not None:
         try:
-            # Prepare input data in the same order as training
+            # Prepare input data
             input_data = np.array([[
                 experience_years,
                 work_life_balance, 
@@ -89,7 +89,7 @@ if st.button("Predict Performance Level"):
                 years_since_promotion
             ]])
             
-            # Scale the input data using the same scaler from training
+            # Scale the input data
             input_scaled = scaler.transform(input_data)
             
             # Make prediction
@@ -97,50 +97,53 @@ if st.button("Predict Performance Level"):
             probabilities = model.predict_proba(input_scaled)
             
             # Get the predicted class and its probability
-            predicted_class = prediction[0]
-            predicted_probability = probabilities[0][predicted_class]
+            predicted_class_index = prediction[0]
+            
+            # ✅ SAFE ACCESS: Check if index exists
+            if predicted_class_index < len(probabilities[0]):
+                predicted_probability = probabilities[0][predicted_class_index]
+            else:
+                predicted_probability = 0.0
+                st.warning("Warning: Class index out of bounds, using default probability")
             
             # Display results
             st.subheader("Prediction Results")
             
-            # Performance level with color coding
-            if predicted_class == 0:
-                st.error(f"**Predicted Performance: {performance_categories[predicted_class]}**")
-            elif predicted_class == 1:
-                st.warning(f"**Predicted Performance: {performance_categories[predicted_class]}**")
+            # ✅ SAFE PERFORMANCE MAPPING
+            performance_labels = {
+                0: "Low Performer",
+                1: "Medium Performer", 
+                2: "High Performer",
+                3: "Exceptional Performer"  # Add if your model has 4 classes
+            }
+            
+            # Use the actual predicted class from the model
+            predicted_class_label = performance_labels.get(
+                predicted_class_index, 
+                f"Class {predicted_class_index}"
+            )
+            
+            # Color coding
+            if predicted_class_index == 0:
+                st.error(f"**Predicted Performance: {predicted_class_label}**")
+            elif predicted_class_index == 1:
+                st.warning(f"**Predicted Performance: {predicted_class_label}**")
             else:
-                st.success(f"**Predicted Performance: {performance_categories[predicted_class]}**")
+                st.success(f"**Predicted Performance: {predicted_class_label}**")
             
             st.write(f"**Confidence: {predicted_probability:.2%}**")
             
-            # Show all probabilities
+            # ✅ SAFE PROBABILITY DISPLAY
             st.write("**Detailed Probabilities:**")
             for i, prob in enumerate(probabilities[0]):
-                st.write(f"- {performance_categories[i]}: {prob:.2%}")
+                label = performance_labels.get(i, f"Class {i}")
+                st.write(f"- {label}: {prob:.2%}")
                 
         except Exception as e:
             st.error(f"Error making prediction: {str(e)}")
+            # Add debugging info
+            if model is not None:
+                st.write(f"Model classes: {model.classes_}")
+                st.write(f"Number of classes: {len(model.classes_)}")
     else:
         st.error("Model not loaded. Please check if the model files exist.")
-
-# Add some information about the model
-st.sidebar.header("About This Model")
-st.sidebar.write("""
-This model uses Gradient Boosting Classifier trained on INX Employee Performance dataset.
-
-**Top 5 Features Used:**
-- Experience Years in Current Role
-- Work Life Balance Rating  
-- Environment Satisfaction Rating
-- Last Salary Hike Percentage
-- Years Since Last Promotion
-""")
-
-# Instructions for deployment
-st.sidebar.header("Deployment Instructions")
-st.sidebar.write("""
-1. Save your trained model as 'pretrained_model.pkl'
-2. Save your scaler as 'scaler.pkl'
-3. Place both files in the same directory as this app
-4. Run: `streamlit run app.py`
-""")
