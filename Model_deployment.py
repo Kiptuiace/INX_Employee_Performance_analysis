@@ -1,14 +1,6 @@
-import os
-#print("Working directory:", os.getcwd())
-
-#os.chdir(r"C:\Users\ADMIN\Desktop\INX EMOLOYEE PERFORMANCE PREDICTION")
-
 import streamlit as st
 import joblib
 import numpy as np
-import pandas as pd
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.preprocessing import StandardScaler
 import warnings
 
 # Suppress sklearn version warnings
@@ -19,19 +11,15 @@ st.title("INX Employee Performance Prediction App")
 st.write("This app predicts employee performance based on key features using Gradient Boosting Classifier.")
 
 # Load the trained model and scaler
-model=joblib.load("pretrained_model.pkl")
-scaler=joblib.load("scaler.pkl")
-
-# Load the trained model and scaler
 @st.cache_resource
 def load_model():
     try:
         # Load your saved model and scaler
-        model = joblib.load('gradient_boosting_model.pkl')
+        model = joblib.load('pretrained_model.pkl')
         scaler = joblib.load('scaler.pkl')
         return model, scaler
     except FileNotFoundError:
-        st.error("Model files not found. Please make sure 'gradient_boosting_model.pkl' and 'scaler.pkl' are in the same directory.")
+        st.error("Model files not found. Please make sure 'pretrained_model.pkl' and 'scaler.pkl' are in the same directory.")
         return None, None
 
 # Load the model and scaler
@@ -81,7 +69,7 @@ years_since_promotion = st.slider(
     help="Number of years since the employee's last promotion"
 )
 
-# Performance categories mapping (adjust based on your actual target variable)
+# Performance categories mapping
 performance_categories = {
     0: "Low Performer",
     1: "Medium Performer", 
@@ -151,38 +139,8 @@ This model uses Gradient Boosting Classifier trained on INX Employee Performance
 # Instructions for deployment
 st.sidebar.header("Deployment Instructions")
 st.sidebar.write("""
-1. Save your trained model as 'gradient_boosting_model.pkl'
+1. Save your trained model as 'pretrained_model.pkl'
 2. Save your scaler as 'scaler.pkl'
 3. Place both files in the same directory as this app
 4. Run: `streamlit run app.py`
 """)
-st.title("Gradient Boosting Classifier App")
-st.write("This app makes predictions using a Gradient Boosting Classifier model.")
-
-# Load the model and scaler
-model, scaler = load_model()
-
-# User Inputs
-st.header("Enter Feature Values")
-
-feature1 = st.number_input("Feature 1", value=0.0, step=0.1)
-feature2 = st.number_input("Feature 2", value=0.0, step=0.1)
-feature3 = st.number_input("Feature 3", value=0.0, step=0.1)
-feature4 = st.number_input("Feature 4", value=0.0, step=0.1)
-
-# Make Prediction
-if st.button("Predict Class"):
-    # Prepare input data
-    input_data = np.array([[feature1, feature2, feature3, feature4]])
-    
-    # Scale the input data (same scaling used during training)
-    input_scaled = scaler.transform(input_data)
-    
-    # Make prediction
-    prediction = model.predict(input_scaled)
-    probabilities = model.predict_proba(input_scaled)
-    
-    # Display results
-    st.subheader(f"Predicted Class: {prediction[0]}")
-    st.write(f"Class Probabilities: {probabilities[0]}")
-
