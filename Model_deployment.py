@@ -11,7 +11,7 @@ st.write("This app predicts employee performance based on key features using Gra
 @st.cache_resource
 def load_model():
     try:
-        model = joblib.load('pretrained_model.pkl')
+        model = joblib.load('gradient_boosting_model.pkl')
         scaler = joblib.load('scaler.pkl')
         return model, scaler
     except FileNotFoundError:
