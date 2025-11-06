@@ -3,18 +3,14 @@ import joblib
 import numpy as np
 import warnings
 
-# Suppress sklearn version warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# Streamlit App
 st.title("INX Employee Performance Prediction App")
 st.write("This app predicts employee performance based on key features using Gradient Boosting Classifier.")
 
-# Load the trained model and scaler
 @st.cache_resource
 def load_model():
     try:
-        # Load your saved model and scaler
         model = joblib.load('pretrained_model.pkl')
         scaler = joblib.load('scaler.pkl')
         return model, scaler
@@ -22,75 +18,66 @@ def load_model():
         st.error("Model files not found. Please make sure 'pretrained_model.pkl' and 'scaler.pkl' are in the same directory.")
         return None, None
 
-# Load the model and scaler
 model, scaler = load_model()
 
-# User Inputs Section
-st.header("Enter Employee Details")
-
-# Top 5 features as identified from your dataset
-experience_years = st.slider(
-    "Experience Years in Current Role", 
-    min_value=0, 
-    max_value=30, 
-    value=2,
-    help="Number of years the employee has been in their current role"
-)
-
-work_life_balance = st.slider(
-    "Work Life Balance Rating", 
-    min_value=1, 
-    max_value=4, 
-    value=3,
-    help="1: Low, 2: Medium, 3: High, 4: Very High"
-)
-
-environment_satisfaction = st.slider(
-    "Environment Satisfaction Rating", 
-    min_value=1, 
-    max_value=4, 
-    value=3,
-    help="1: Low, 2: Medium, 3: High, 4: Very High"
-)
-
-last_salary_hike = st.slider(
-    "Last Salary Hike Percentage", 
-    min_value=0, 
-    max_value=25, 
-    value=11,
-    help="Percentage of last salary hike received"
-)
-
-years_since_promotion = st.slider(
-    "Years Since Last Promotion", 
-    min_value=0, 
-    max_value=15, 
-    value=2,
-    help="Number of years since the employee's last promotion"
-)
-
-# Performance categories mapping
+# Performance categories
 performance_categories = {
     0: "Low Performer",
     1: "Medium Performer", 
     2: "High Performer"
 }
 
-# Make Prediction
-if st.button("Predict Performance Level"):
-    if model is not None and scaler is not None:
+if model is not None and scaler is not None:
+    # Get the expected number of features from the scaler
+    expected_features = scaler.n_features_in_
+    st.sidebar.write(f"Model expects {expected_features} features")
+    
+    st.header("Enter Employee Details")
+    
+    # Create input for all expected features with default values
+    input_data = []
+    feature_names = []
+    
+    # Top 5 important features (customize these based on your actual feature names)
+    important_features = [
+        ('experience_years', 'Experience Years in Current Role', 0, 30, 2),
+        ('work_life_balance', 'Work Life Balance Rating', 1, 4, 3),
+        ('environment_satisfaction', 'Environment Satisfaction Rating', 1, 4, 3),
+        ('last_salary_hike', 'Last Salary Hike Percentage', 0, 25, 11),
+        ('years_since_promotion', 'Years Since Last Promotion', 0, 15, 2)
+    ]
+    
+    # Collect the 5 important features
+    for feature_id, label, min_val, max_val, default_val in important_features:
+        value = st.slider(label, min_value=min_val, max_value=max_val, value=default_val)
+        input_data.append(value)
+        feature_names.append(feature_id)
+    
+    # For the remaining features, use default values (0 or mean values)
+    remaining_features = expected_features - len(important_features)
+    
+    if remaining_features > 0:
+        st.subheader("Additional Employee Information")
+        st.info(f"Please provide {remaining_features} additional features or use default values.")
+        
+        # You can either:
+        # Option A: Collect all remaining features (if you know their names)
+        # Option B: Use default values for remaining features
+        
+        # For now, we'll use default values (0) for remaining features
+        default_values = [0] * remaining_features
+        input_data.extend(default_values)
+        
+        st.warning(f"Using default values for {remaining_features} additional features.")
+
+    # Make Prediction
+    if st.button("Predict Performance Level"):
         try:
-            # Prepare input data in the same order as training
-            input_data = np.array([[
-                experience_years,
-                work_life_balance, 
-                environment_satisfaction,
-                last_salary_hike,
-                years_since_promotion
-            ]])
+            # Prepare input data
+            input_array = np.array([input_data])
             
-            # Scale the input data using the same scaler from training
-            input_scaled = scaler.transform(input_data)
+            # Scale the input data
+            input_scaled = scaler.transform(input_array)
             
             # Make prediction
             prediction = model.predict(input_scaled)
@@ -103,7 +90,6 @@ if st.button("Predict Performance Level"):
             # Display results
             st.subheader("Prediction Results")
             
-            # Performance level with color coding
             if predicted_class == 0:
                 st.error(f"**Predicted Performance: {performance_categories[predicted_class]}**")
             elif predicted_class == 1:
@@ -120,27 +106,12 @@ if st.button("Predict Performance Level"):
                 
         except Exception as e:
             st.error(f"Error making prediction: {str(e)}")
-    else:
-        st.error("Model not loaded. Please check if the model files exist.")
+            st.info("This error usually occurs when the number of features doesn't match the trained model.")
 
-# Add some information about the model
+else:
+    st.error("Model not loaded properly.")
+
 st.sidebar.header("About This Model")
 st.sidebar.write("""
 This model uses Gradient Boosting Classifier trained on INX Employee Performance dataset.
-
-**Top 5 Features Used:**
-- Experience Years in Current Role
-- Work Life Balance Rating  
-- Environment Satisfaction Rating
-- Last Salary Hike Percentage
-- Years Since Last Promotion
-""")
-
-# Instructions for deployment
-st.sidebar.header("Deployment Instructions")
-st.sidebar.write("""
-1. Save your trained model as 'pretrained_model.pkl'
-2. Save your scaler as 'scaler.pkl'
-3. Place both files in the same directory as this app
-4. Run: `streamlit run app.py`
 """)
