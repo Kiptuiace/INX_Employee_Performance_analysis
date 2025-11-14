@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 # Streamlit App
 st.title("INX Employee Performance Prediction App")
-st.write("This app predicts employee performance based on key features using Gradient Boosting Classifier.")
+st.write("This app predicts employee performance rating (1-4) based on key features using Gradient Boosting Classifier.")
 
 # Load the trained model and scaler
 @st.cache_resource
@@ -19,7 +19,7 @@ def load_model():
         scaler = joblib.load('scaler.pkl')
         return model, scaler
     except FileNotFoundError:
-        st.error("Model files not found. Please make sure 'pretrained_model.pkl' and 'scaler.pkl' are in the same directory.")
+        st.error("Model files not found. Please make sure 'gradient_boosting_model.pkl' and 'scaler.pkl' are in the same directory.")
         return None, None
 
 # Load the model and scaler
@@ -42,7 +42,7 @@ work_life_balance = st.slider(
     min_value=1, 
     max_value=4, 
     value=3,
-    help="1: Low, 2: Medium, 3: High, 4: Very High"
+    help="1: Poor, 2: Fair, 3: Good, 4: Excellent"
 )
 
 environment_satisfaction = st.slider(
@@ -50,7 +50,7 @@ environment_satisfaction = st.slider(
     min_value=1, 
     max_value=4, 
     value=3,
-    help="1: Low, 2: Medium, 3: High, 4: Very High"
+    help="1: Poor, 2: Fair, 3: Good, 4: Excellent"
 )
 
 last_salary_hike = st.slider(
@@ -69,15 +69,16 @@ years_since_promotion = st.slider(
     help="Number of years since the employee's last promotion"
 )
 
-# Performance categories mapping
-performance_categories = {
-    0: "Low Performer",
-    1: "Medium Performer", 
-    2: "High Performer"
+# Performance rating mapping (1-4 scale)
+performance_ratings = {
+    1: {"label": "Low", "description": "Needs improvement in key areas"},
+    2: {"label": "Good", "description": "Meets expectations consistently"},
+    3: {"label": "Excellent", "description": "Exceeds expectations regularly"},
+    4: {"label": "Outstanding", "description": "Consistently exceptional performer"}
 }
 
 # Make Prediction
-if st.button("Predict Performance Level"):
+if st.button("Predict Performance Rating"):
     if model is not None and scaler is not None:
         try:
             # Prepare input data
@@ -92,58 +93,65 @@ if st.button("Predict Performance Level"):
             # Scale the input data
             input_scaled = scaler.transform(input_data)
             
-            # Make prediction
-            prediction = model.predict(input_scaled)
-            probabilities = model.predict_proba(input_scaled)
+            # Make prediction - get absolute performance rating (1-4)
+            predicted_rating = model.predict(input_scaled)[0]
             
-            # Get the predicted class and its probability
-            predicted_class_index = prediction[0]
+            # Ensure the prediction is within 1-4 range
+            predicted_rating = max(1, min(4, predicted_rating))
             
-            # ✅ SAFE ACCESS: Check if index exists
-            if predicted_class_index < len(probabilities[0]):
-                predicted_probability = probabilities[0][predicted_class_index]
-            else:
-                predicted_probability = 0.0
-                st.warning("Warning: Class index out of bounds, using default probability")
+            # Get performance details
+            performance_info = performance_ratings.get(predicted_rating, 
+                {"label": f"Rating {predicted_rating}", "description": "Performance rating"})
             
             # Display results
             st.subheader("Prediction Results")
             
-            # ✅ SAFE PERFORMANCE MAPPING
-            performance_labels = {
-                0: "Low Performer",
-                1: "Medium Performer", 
-                2: "High Performer",
-                3: "Exceptional Performer"  # Add if your model has 4 classes
-            }
+            # Color-coded display based on rating
+            if predicted_rating == 1:
+                st.error(f"**Predicted Performance Rating: {predicted_rating} - {performance_info['label']}**")
+                st.info(f"**Description:** {performance_info['description']}")
+            elif predicted_rating == 2:
+                st.warning(f"**Predicted Performance Rating: {predicted_rating} - {performance_info['label']}**")
+                st.info(f"**Description:** {performance_info['description']}")
+            elif predicted_rating == 3:
+                st.success(f"**Predicted Performance Rating: {predicted_rating} - {performance_info['label']}**")
+                st.info(f"**Description:** {performance_info['description']}")
+            else:  # rating 4
+                st.success(f"**Predicted Performance Rating: {predicted_rating} - {performance_info['label']}** 🎉")
+                st.info(f"**Description:** {performance_info['description']}")
             
-            # Use the actual predicted class from the model
-            predicted_class_label = performance_labels.get(
-                predicted_class_index, 
-                f"Class {predicted_class_index}"
-            )
+            # Display key factors influencing the prediction
+            st.subheader("Key Performance Factors")
+            factors = [
+                f"• Experience in Current Role: {experience_years} years",
+                f"• Work-Life Balance: {work_life_balance}/4",
+                f"• Environment Satisfaction: {environment_satisfaction}/4", 
+                f"• Last Salary Hike: {last_salary_hike}%",
+                f"• Years Since Promotion: {years_since_promotion} years"
+            ]
             
-            # Color coding
-            if predicted_class_index == 0:
-                st.error(f"**Predicted Performance: {predicted_class_label}**")
-            elif predicted_class_index == 1:
-                st.warning(f"**Predicted Performance: {predicted_class_label}**")
-            else:
-                st.success(f"**Predicted Performance: {predicted_class_label}**")
-            
-            st.write(f"**Confidence: {predicted_probability:.2%}**")
-            
-            # ✅ SAFE PROBABILITY DISPLAY
-            st.write("**Detailed Probabilities:**")
-            for i, prob in enumerate(probabilities[0]):
-                label = performance_labels.get(i, f"Class {i}")
-                st.write(f"- {label}: {prob:.2%}")
+            for factor in factors:
+                st.write(factor)
                 
         except Exception as e:
             st.error(f"Error making prediction: {str(e)}")
             # Add debugging info
             if model is not None:
-                st.write(f"Model classes: {model.classes_}")
-                st.write(f"Number of classes: {len(model.classes_)}")
+                st.write(f"Model type: {type(model)}")
+                st.write(f"Model features expected: {getattr(model, 'n_features_in_', 'Unknown')}")
     else:
         st.error("Model not loaded. Please check if the model files exist.")
+
+# Add deployment information
+st.sidebar.header("Deployment Info")
+st.sidebar.info("""
+**Performance Rating Scale:**
+- **1 (Low):** Needs improvement
+- **2 (Good):** Meets expectations  
+- **3 (Excellent):** Exceeds expectations
+- **4 (Outstanding):** Exceptional performer
+
+**Model:** Gradient Boosting Classifier
+**Input Features:** 5 key employee metrics
+**Output:** Absolute performance rating (1-4)
+""")
